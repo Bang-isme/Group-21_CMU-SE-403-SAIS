@@ -1,0 +1,7 @@
+1. Why is it important to classify fault types such as omission, crash, timing, and response in an availability scenario? Provide an illustrative example.
+
+2. Among the tactics for improving availability, which tactic allows the system to recover from a fault without causing downtime? Analyze the advantages and disadvantages of that tactic.
+
+3. How should a system’s architecture be designed to ensure high availability when using late binding?
+
+edit by bangisme
