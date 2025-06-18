@@ -1,0 +1,17 @@
+# Ignore node_modules
+node_modules/
+
+# Ignore Cap 1 directory
+/Cap 1/
+Cap 1/
+
+# Ignore environment variables
+.env
+
+# Ignore temporary files
+*.tmp
+*.log
+
+# Ignore OS specific files
+.DS_Store
+Thumbs.db 

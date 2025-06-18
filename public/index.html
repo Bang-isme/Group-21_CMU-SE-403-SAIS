@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fibonacci Calculator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .container {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    .result-container {
+      margin-top: 30px;
+      display: none;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+    }
+    .status.pending {
+      background-color: #fcf8e3;
+      border-left: 5px solid #f39c12;
+    }
+    .status.processing {
+      background-color: #d9edf7;
+      border-left: 5px solid #3498db;
+    }
+    .status.completed {
+      background-color: #dff0d8;
+      border-left: 5px solid #2ecc71;
+    }
+    .status.failed {
+      background-color: #f2dede;
+      border-left: 5px solid #e74c3c;
+    }
+    .status.cached {
+      background-color: #e8f5e9;
+      border-left: 5px solid #4caf50;
+    }
+    .fibonacci-result {
+      margin-top: 20px;
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-wrap: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .download-btn {
+      margin-top: 15px;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: #3498db;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-left: 10px;
+      background-color: #3498db;
+      color: white;
+    }
+    .badge.cached {
+      background-color: #4caf50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Fibonacci Calculator</h1>
+    
+    <div class="form-group">
+      <label for="fibonacci-input">Enter a non-negative integer (max 100,000):</label>
+      <input type="number" id="fibonacci-input" min="0" max="100000" placeholder="Enter n">
+    </div>
+    
+    <button id="calculate-btn">Calculate Fibonacci</button>
+    
+    <div id="result-container" class="result-container">
+      <div id="status" class="status pending">
+        <div id="status-text">Waiting for calculation to complete...</div>
+      </div>
+      
+      <div id="fibonacci-result" class="fibonacci-result" style="display: none;"></div>
+      
+      <button id="download-btn" class="download-btn" style="display: none;">Download PDF</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const calculateBtn = document.getElementById('calculate-btn');
+      const fibonacciInput = document.getElementById('fibonacci-input');
+      const resultContainer = document.getElementById('result-container');
+      const statusElement = document.getElementById('status');
+      const statusText = document.getElementById('status-text');
+      const fibonacciResult = document.getElementById('fibonacci-result');
+      const downloadBtn = document.getElementById('download-btn');
+      
+      let currentJobId = null;
+      let pollingInterval = null;
+      
+      // Calculate Fibonacci
+      calculateBtn.addEventListener('click', async () => {
+        const n = fibonacciInput.value.trim();
+        
+        if (!n) {
+          alert('Please enter a number');
+          return;
+        }
+        
+        if (parseInt(n) < 0 || parseInt(n) > 100000) {
+          alert('Please enter a non-negative integer less than or equal to 100,000');
+          return;
+        }
+        
+        try {
+          calculateBtn.disabled = true;
+          statusElement.className = 'status pending';
+          statusText.innerHTML = '<div class="loading"></div> Job submitted, waiting for processing...';
+          resultContainer.style.display = 'block';
+          fibonacciResult.style.display = 'none';
+          downloadBtn.style.display = 'none';
+          
+          // Submit job
+          const response = await fetch('/api/fibonacci', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ n })
+          });
+          
+          // Check if the response is OK before parsing JSON
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server responded with status: ${response.status}. Response: ${errorText}`);
+          }
+          
+          // Try to parse the JSON response
+          let data;
+          try {
+            data = await response.json();
+          } catch (jsonError) {
+            throw new Error(`Invalid JSON response: ${jsonError.message}`);
+          }
+          
+          // Check if result is from cache
+          if (data.fromCache) {
+            // Display cached result immediately
+            displayCachedResult(data);
+          } else {
+            // Start polling for regular job
+            currentJobId = data.jobId;
+            startPolling(currentJobId);
+          }
+        } catch (error) {
+          statusElement.className = 'status failed';
+          statusText.textContent = `Error: ${error.message}`;
+          console.error('Error details:', error);
+          calculateBtn.disabled = false;
+        }
+      });
+      
+      // Display cached result
+      function displayCachedResult(data) {
+        statusElement.className = 'status cached';
+        statusText.innerHTML = 'Result retrieved from cache <span class="badge cached">Instant</span>';
+        
+        // Display result
+        fibonacciResult.textContent = `Fibonacci(${data.n}) = ${data.result}`;
+        fibonacciResult.style.display = 'block';
+        
+        // Setup download button
+        downloadBtn.style.display = 'block';
+        downloadBtn.onclick = () => {
+          window.location.href = data.downloadUrl;
+        };
+        
+        calculateBtn.disabled = false;
+      }
+      
+      // Poll for job status
+      function startPolling(jobId) {
+        // Clear any existing polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+        }
+        
+        pollingInterval = setInterval(async () => {
+          try {
+            const response = await fetch(`/api/fibonacci/status/${jobId}`);
+            
+            // Check if the response is OK before parsing JSON
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`Server responded with status: ${response.status}. Response: ${errorText}`);
+            }
+            
+            // Try to parse the JSON response
+            let data;
+            try {
+              data = await response.json();
+            } catch (jsonError) {
+              throw new Error(`Invalid JSON response: ${jsonError.message}`);
+            }
+            
+            updateStatus(data);
+            
+            // If job is completed or failed, stop polling
+            if (data.status === 'completed' || data.status === 'failed') {
+              clearInterval(pollingInterval);
+              calculateBtn.disabled = false;
+            }
+          } catch (error) {
+            statusElement.className = 'status failed';
+            statusText.textContent = `Error: ${error.message}`;
+            console.error('Error details:', error);
+            clearInterval(pollingInterval);
+            calculateBtn.disabled = false;
+          }
+        }, 3000); // Poll every 3 seconds
+      }
+      
+      // Update status display
+      function updateStatus(data) {
+        switch (data.status) {
+          case 'pending':
+            statusElement.className = 'status pending';
+            statusText.innerHTML = '<div class="loading"></div> Waiting in queue...';
+            break;
+          
+          case 'processing':
+            statusElement.className = 'status processing';
+            statusText.innerHTML = '<div class="loading"></div> Processing...';
+            break;
+          
+          case 'completed':
+            statusElement.className = 'status completed';
+            statusText.textContent = 'Calculation completed!';
+            
+            // Display result
+            fibonacciResult.textContent = `Fibonacci(${data.n}) = ${data.result}`;
+            fibonacciResult.style.display = 'block';
+            
+            // Setup download button
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = () => {
+              window.location.href = data.downloadUrl;
+            };
+            break;
+          
+          case 'failed':
+            statusElement.className = 'status failed';
+            statusText.textContent = `Error: ${data.error || 'Calculation failed'}`;
+            break;
+          
+          default:
+            statusElement.className = 'status failed';
+            statusText.textContent = `Unknown status: ${data.status}`;
+        }
+      }
+    });
+  </script>
+</body>
+</html> 
