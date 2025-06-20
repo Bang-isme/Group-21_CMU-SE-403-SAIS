@@ -1,0 +1,3 @@
+1.How can a system targeting 99.9% availability be designed with an effective fault model that bridges the gap between high-level failure definitions and low-level fault types such as transient, omission, crash, and timing faults?
+2.In a distributed system where components may fail silently or continue operating in a faulty state ("fail-operational"), how can the system maintain high availability when both transient and deterministic faults occur—particularly when their symptoms appear similar, such as hung processes, crashes, or network delays?
+3.When different types of faults—such as process hangs, hardware crashes, or communication failures—produce indistinguishable symptoms during runtime, how can the system accurately identify the root cause of the failure?
